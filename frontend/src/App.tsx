@@ -12,7 +12,7 @@ function App() {
     setResult(null)
 
     try {
-      const response = await fetch('https://simple-worker-workflow.frankiexu32.workers.dev/process', {
+      const response = await fetch('/api/process', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

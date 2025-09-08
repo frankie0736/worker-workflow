@@ -14,10 +14,27 @@
 
 ## 架构概览
 
+### 合并部署架构（推荐）
+```
+┌─────────────────────────────────┐
+│    Cloudflare Worker (单一部署)   │
+├─────────────────────────────────┤
+│  • 静态文件服务 (React前端)       │
+│  • API端点 (/api/process)        │
+│  • Workflow集成 (5步计算流程)     │
+└─────────────────────────────────┘
+         ↑
+         │ HTTPS请求
+         │
+    用户浏览器
+```
+
+### 原分离架构（可选）
 ```
 ┌─────────────────┐
 │   React前端     │
-│  (用户界面)      │
+│  (Cloudflare    │
+│   Pages)        │
 └────────┬────────┘
          │ HTTP请求
          ▼
@@ -39,7 +56,7 @@
 
 ## 前后端通信机制
 
-### 1. 前端发送请求
+### 1. 前端发送请求（合并部署）
 
 ```typescript
 // frontend/src/App.tsx
@@ -49,8 +66,8 @@ const handleSubmit = async (e: React.FormEvent) => {
     number: 123  // 用户输入的数字
   };
 
-  // 发送POST请求到Worker
-  const response = await fetch('https://your-worker.workers.dev/process', {
+  // 发送POST请求到相对路径API（同源）
+  const response = await fetch('/api/process', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -318,37 +335,50 @@ npm run dev
 2. **安装Wrangler CLI**: `npm install -g wrangler`
 3. **登录Cloudflare**: `wrangler login`
 
-### 部署Worker和Workflow
+### 方式1：合并部署（推荐）
+
+一个Worker同时提供前端和API：
 
 ```bash
-cd backend
+# 1. 构建前端
+cd frontend
+npm run build
 
-# 首次部署
+# 2. 复制前端到Worker目录
+cd ../backend
+mkdir -p public
+cp -r ../frontend/dist/* public/
+
+# 3. 配置wrangler.toml
+# 添加以下配置：
+# [site]
+# bucket = "./public"
+
+# 4. 部署Worker（包含前端和API）
 npx wrangler deploy
 
 # 部署成功后会显示：
 # ✅ https://your-worker.workers.dev
+# 前端和API都在同一个URL下
 ```
 
-### 部署前端到Cloudflare Pages
+### 方式2：分离部署
+
+分别部署Worker和Pages：
 
 ```bash
-cd frontend
+# 部署Worker
+cd backend
+npx wrangler deploy
 
-# 1. 修改API地址为生产环境
-# 编辑 src/App.tsx，将 localhost:8787 改为 your-worker.workers.dev
-
-# 2. 构建项目
+# 部署前端到Pages
+cd ../frontend
 npm run build
-
-# 3. 创建Pages项目
-npx wrangler pages project create my-app --production-branch main
-
-# 4. 部署
 npx wrangler pages deploy dist --project-name=my-app
 
-# 部署成功后会显示：
-# ✅ https://xxxxx.my-app.pages.dev
+# 两个独立的URL：
+# Worker: https://your-worker.workers.dev
+# Pages: https://xxxxx.my-app.pages.dev
 ```
 
 ### 环境配置

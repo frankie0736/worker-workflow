@@ -1,6 +1,10 @@
 # React + Cloudflare Worker + Workflow 示例
 
-一个全栈应用，展示React前端与Cloudflare Worker和Workflow的集成，实现多步骤计算流程。
+一个全栈应用，展示React前端与Cloudflare Worker和Workflow的集成，实现多步骤计算流程。**现已支持合并部署到单一Worker！**
+
+## 🚀 在线演示
+
+访问: https://simple-worker-workflow.frankiexu32.workers.dev
 
 ## 项目结构
 
@@ -10,8 +14,9 @@ worker-workflow/
 │   └── src/
 │       └── App.tsx   # 主界面
 └── backend/          # Cloudflare Worker + Workflow
-    └── src/
-        └── index.ts  # Worker和Workflow定义
+    ├── src/
+    │   └── index.ts  # Worker和Workflow定义
+    └── public/       # 静态文件（前端构建产物）
 ```
 
 ## 功能说明
@@ -71,46 +76,38 @@ curl -X POST http://localhost:8787/process \
 
 ## 部署到生产环境
 
-### 1. 部署Worker到Cloudflare
+### 方式1: 合并部署（推荐） - 前端和后端在同一个Worker
 
 ```bash
-cd backend
-
-# 登录Cloudflare (如果还没登录)
-npx wrangler login
-
-# 部署到生产环境
-npx wrangler deploy
-
-# 部署成功后会显示Worker URL，例如:
-# https://simple-worker-workflow.your-subdomain.workers.dev
-```
-
-### 2. 更新前端API地址
-
-编辑 `frontend/src/App.tsx`，将API地址改为生产环境URL：
-
-```typescript
-// 开发环境
-const response = await fetch('http://localhost:8787/process', {
-
-// 生产环境（已配置）
-const response = await fetch('https://simple-worker-workflow.frankiexu32.workers.dev/process', {
-```
-
-### 3. 部署前端
-
-#### 选项A: 部署到Cloudflare Pages
-
-```bash
+# 1. 构建前端
 cd frontend
-
-# 构建前端
 npm run build
 
-# 部署到Cloudflare Pages
-npx wrangler pages deploy dist \
-  --project-name=my-workflow-app
+# 2. 复制前端到backend
+cd ../backend
+mkdir -p public
+cp -r ../frontend/dist/* public/
+
+# 3. 部署Worker（包含前端和API）
+npx wrangler deploy
+
+# 访问部署的应用：
+# https://simple-worker-workflow.frankiexu32.workers.dev
+```
+
+### 方式2: 分离部署（传统方式）
+
+#### 部署Worker
+```bash
+cd backend
+npx wrangler deploy
+```
+
+#### 部署前端到Cloudflare Pages
+```bash
+cd frontend
+npm run build
+npx wrangler pages deploy dist --project-name=my-workflow-app
 ```
 
 #### 选项B: 部署到Vercel
