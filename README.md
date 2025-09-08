@@ -1,6 +1,6 @@
 # React + Cloudflare Worker + Workflow 示例
 
-一个简单的全栈应用，展示React前端与Cloudflare Worker和Workflow的集成。
+一个全栈应用，展示React前端与Cloudflare Worker和Workflow的集成，实现多步骤计算流程。
 
 ## 项目结构
 
@@ -16,13 +16,15 @@ worker-workflow/
 
 ## 功能说明
 
-1. **React前端**: 用户输入姓名和数字，发送请求到Worker
+1. **React前端**: 用户输入数字，发送请求到Worker
 2. **Worker接收**: 处理HTTP请求，触发Workflow
-3. **Workflow执行**: 分3步处理：
-   - 步骤1: 验证输入
-   - 步骤2: 处理数据（数字×2）
-   - 步骤3: 生成最终结果
-4. **返回结果**: Worker将结果返回给React前端
+3. **Workflow执行**: 分5步处理：
+   - 步骤1: 验证是否为数字
+   - 步骤2: 加1
+   - 步骤3: 乘以2
+   - 步骤4: 乘以3
+   - 步骤5: 生成最终结果
+4. **返回结果**: Worker将结果返回给React前端，突出显示计算结果
 
 ## 本地测试
 
@@ -64,7 +66,7 @@ npm run dev
 # 直接测试Worker API
 curl -X POST http://localhost:8787/process \
   -H "Content-Type: application/json" \
-  -d '{"name": "测试", "number": 42}'
+  -d '{"number": 10}'
 ```
 
 ## 部署到生产环境
@@ -89,11 +91,11 @@ npx wrangler deploy
 编辑 `frontend/src/App.tsx`，将API地址改为生产环境URL：
 
 ```typescript
-// 将这行
+// 开发环境
 const response = await fetch('http://localhost:8787/process', {
 
-// 改为
-const response = await fetch('https://simple-worker-workflow.your-subdomain.workers.dev/process', {
+// 生产环境（已配置）
+const response = await fetch('https://simple-worker-workflow.frankiexu32.workers.dev/process', {
 ```
 
 ### 3. 部署前端

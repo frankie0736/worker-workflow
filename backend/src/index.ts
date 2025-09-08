@@ -2,48 +2,72 @@ import { WorkflowEntrypoint, WorkflowStep, WorkflowEvent } from 'cloudflare:work
 
 // ============ Workflow 定义 ============
 interface WorkflowParams {
-  name: string;
   number: number;
 }
 
-// Workflow类：处理3个步骤
+// Workflow类：处理多个计算步骤
 export class MyWorkflow extends WorkflowEntrypoint<{}, WorkflowParams> {
   async run(event: WorkflowEvent<WorkflowParams>, step: WorkflowStep) {
-    const { name, number } = event.payload.params;
+    const { number } = event.payload.params;
     
-    // 步骤1: 验证输入
+    // 步骤1: 验证是否为数字
     const step1Result = await step.do('step1-validate', async () => {
-      console.log('步骤1: 验证输入');
+      console.log('步骤1: 验证输入是否为数字');
+      if (typeof number !== 'number' || isNaN(number)) {
+        throw new Error('输入必须是有效的数字');
+      }
       return {
         validated: true,
-        message: `输入验证成功: ${name}, ${number}`
+        value: number,
+        message: `✅ 步骤1: 验证成功，输入值为 ${number}`
       };
     });
 
-    // 步骤2: 处理数据（数字乘以2）
-    const step2Result = await step.do('step2-process', async () => {
-      console.log('步骤2: 处理数据');
-      const processed = number * 2;
+    // 步骤2: 加1
+    const step2Result = await step.do('step2-add-one', async () => {
+      console.log('步骤2: 加1');
+      const result = step1Result.value + 1;
       return {
-        processed: true,
-        result: processed,
-        message: `处理完成: ${number} * 2 = ${processed}`
+        value: result,
+        message: `➕ 步骤2: ${step1Result.value} + 1 = ${result}`
       };
     });
 
-    // 步骤3: 生成最终结果
-    const finalResult = await step.do('step3-finalize', async () => {
-      console.log('步骤3: 生成最终结果');
+    // 步骤3: 乘以2
+    const step3Result = await step.do('step3-multiply-two', async () => {
+      console.log('步骤3: 乘以2');
+      const result = step2Result.value * 2;
+      return {
+        value: result,
+        message: `✖️ 步骤3: ${step2Result.value} × 2 = ${result}`
+      };
+    });
+
+    // 步骤4: 乘以3
+    const step4Result = await step.do('step4-multiply-three', async () => {
+      console.log('步骤4: 乘以3');
+      const result = step3Result.value * 3;
+      return {
+        value: result,
+        message: `✖️ 步骤4: ${step3Result.value} × 3 = ${result}`
+      };
+    });
+
+    // 步骤5: 生成最终结果
+    const finalResult = await step.do('step5-finalize', async () => {
+      console.log('步骤5: 生成最终结果');
       return {
         success: true,
-        name: name,
         originalNumber: number,
-        processedNumber: step2Result.result,
+        finalResult: step4Result.value,
+        formula: `((${number} + 1) × 2) × 3 = ${step4Result.value}`,
         timestamp: new Date().toISOString(),
         steps: [
           step1Result.message,
           step2Result.message,
-          '最终结果生成完成'
+          step3Result.message,
+          step4Result.message,
+          `🎯 步骤5: 最终结果 = ${step4Result.value}`
         ]
       };
     });
@@ -91,12 +115,11 @@ export default {
     // 处理请求
     if (url.pathname === '/process' && request.method === 'POST') {
       try {
-        const body = await request.json() as { name: string; number: number };
+        const body = await request.json() as { number: number };
         
         // 创建并运行Workflow实例
         const instance = await env.MY_WORKFLOW.create({
           params: {
-            name: body.name,
             number: body.number
           }
         });
@@ -106,17 +129,22 @@ export default {
         // 因为Cloudflare Workflows在生产环境是真正异步的
         
         // 直接计算并返回结果
-        const processedNumber = body.number * 2;
+        const step1 = body.number + 1;
+        const step2 = step1 * 2;
+        const step3 = step2 * 3;
+        
         const finalResult = {
           success: true,
-          name: body.name,
           originalNumber: body.number,
-          processedNumber: processedNumber,
+          finalResult: step3,
+          formula: `((${body.number} + 1) × 2) × 3 = ${step3}`,
           timestamp: new Date().toISOString(),
           steps: [
-            `输入验证成功: ${body.name}, ${body.number}`,
-            `处理完成: ${body.number} * 2 = ${processedNumber}`,
-            '最终结果生成完成'
+            `✅ 步骤1: 验证成功，输入值为 ${body.number}`,
+            `➕ 步骤2: ${body.number} + 1 = ${step1}`,
+            `✖️ 步骤3: ${step1} × 2 = ${step2}`,
+            `✖️ 步骤4: ${step2} × 3 = ${step3}`,
+            `🎯 步骤5: 最终结果 = ${step3}`
           ],
           workflowStatus: 'Workflow已在后台异步执行'
         };

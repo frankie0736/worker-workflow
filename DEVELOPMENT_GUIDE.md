@@ -30,7 +30,7 @@
          ▼
 ┌─────────────────┐
 │ Cloudflare      │
-│   Workflow      │ ← 执行3个步骤
+│   Workflow      │ ← 执行5个步骤
 │  (业务逻辑)     │ → 返回结果
 └─────────────────┘
 ```
@@ -46,8 +46,7 @@
 const handleSubmit = async (e: React.FormEvent) => {
   // 准备请求数据
   const requestData = {
-    name: "用户输入的姓名",
-    number: 123
+    number: 123  // 用户输入的数字
   };
 
   // 发送POST请求到Worker
@@ -160,7 +159,6 @@ async function handleProcess(request: Request, env: Env) {
   // 创建Workflow实例
   const workflowInstance = await env.MY_WORKFLOW.create({
     params: {
-      name: body.name,
       number: body.number
     }
   });
@@ -190,38 +188,47 @@ import { WorkflowEntrypoint, WorkflowStep, WorkflowEvent } from 'cloudflare:work
 
 // Workflow参数类型
 interface WorkflowParams {
-  name: string;
   number: number;
 }
 
-// Workflow类定义
+// Workflow类定义 - 5步计算流程
 export class MyWorkflow extends WorkflowEntrypoint<{}, WorkflowParams> {
   async run(event: WorkflowEvent<WorkflowParams>, step: WorkflowStep) {
-    const { name, number } = event.payload.params;
+    const { number } = event.payload.params;
     
-    // 步骤1：验证输入
+    // 步骤1：验证是否为数字
     const step1Result = await step.do('step1-validate', async () => {
-      // 验证逻辑
-      if (!name || !number) {
-        throw new Error('参数无效');
+      if (typeof number !== 'number' || isNaN(number)) {
+        throw new Error('输入必须是有效的数字');
       }
-      return { validated: true };
+      return { value: number, validated: true };
     });
     
-    // 步骤2：处理数据
-    const step2Result = await step.do('step2-process', async () => {
-      // 处理逻辑
-      const processed = number * 2;
-      return { result: processed };
+    // 步骤2：加1
+    const step2Result = await step.do('step2-add-one', async () => {
+      const result = step1Result.value + 1;
+      return { value: result };
     });
     
-    // 步骤3：生成结果
-    const finalResult = await step.do('step3-finalize', async () => {
-      // 最终处理
+    // 步骤3：乘以2
+    const step3Result = await step.do('step3-multiply-two', async () => {
+      const result = step2Result.value * 2;
+      return { value: result };
+    });
+    
+    // 步骤4：乘以3
+    const step4Result = await step.do('step4-multiply-three', async () => {
+      const result = step3Result.value * 3;
+      return { value: result };
+    });
+    
+    // 步骤5：生成最终结果
+    const finalResult = await step.do('step5-finalize', async () => {
       return {
         success: true,
         originalNumber: number,
-        processedNumber: step2Result.result,
+        finalResult: step4Result.value,
+        formula: `((${number} + 1) × 2) × 3 = ${step4Result.value}`,
         timestamp: new Date().toISOString()
       };
     });
